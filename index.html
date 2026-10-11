@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Farm-Planer</title>
+  <meta name="description" content="Minecraft-Farmen planen und bauen: Stufen von Anfänger bis Endgame, Erträge pro Stunde, Kosten, To-Do-Liste, 3D-Ansicht Schicht für Schicht und Schematic-Download.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%23866043'/%3E%3Crect width='16' height='5' fill='%2362a03c'/%3E%3Crect x='3' y='5' width='2' height='2' fill='%2362a03c'/%3E%3Crect x='10' y='5' width='3' height='1' fill='%2362a03c'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Pixelify+Sans:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#/">
+      <span class="brand-block" aria-hidden="true"></span>
+      <span>Farm-Planer</span>
+    </a>
+    <nav class="topnav">
+      <a href="#/">Alle Farmen</a>
+      <a href="#/meine">Meine Farmen</a>
+      <a href="#/hilfe">Hilfe</a>
+    </nav>
+  </header>
+
+  <main id="app"></main>
+
+  <footer class="footer">
+    <p>Für Minecraft Java Edition 1.21. Alle Raten sind gerundete Richtwerte. Die Baupläne sind vereinfachte Nachbauten bekannter Farm-Prinzipien – teste große Farmen am besten zuerst in einer Kreativwelt.</p>
+  </footer>
+
+  <script src="js/vendor/three.min.js"></script>
+  <script src="js/vendor/OrbitControls.js"></script>
+  <script src="js/blocks.js"></script>
+  <script src="js/builder.js"></script>
+  <script src="js/designs.js"></script>
+  <script src="js/farms.js"></script>
+  <script src="js/schematic.js"></script>
+  <script src="js/viewer3d.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
