@@ -29,6 +29,7 @@
     if (!cache[k]) {
       const b = new MF.Build();
       farm.tiers[ti].build(b);
+      if (MF.extraAnims[farm.id + ':' + ti]) MF.extraAnims[farm.id + ':' + ti](b);
       cache[k] = b.done();
     }
     return cache[k];
@@ -109,7 +110,11 @@
       ctx.strokeStyle = 'rgba(0,0,0,.45)';
       ctx.lineWidth = 2;
       ctx.stroke();
-    } else if (d) MF.drawTexture(ctx, key, size);
+    } else if (d) {
+      const real = MF.iconTex(key, d.front ? 'front' : 'side');
+      if (real) { ctx.imageSmoothingEnabled = false; ctx.drawImage(real, 0, 0, size, size); }
+      else MF.drawTexture(ctx, key, size);
+    }
     return c;
   }
   function iconHTML(key) {
@@ -139,6 +144,95 @@
     return best;
   }
 
+
+  // ---------------------------------------------------------------- Schicht zeichnen (Plan + Druck)
+  function paintLayer(ctx, o) {
+    const { W, L, byLayer, mobsByLayer, y: layer, c, ox, oy } = o;
+    ctx.fillStyle = o.bg;
+    ctx.fillRect(ox, oy, c * W, c * L);
+    ctx.strokeStyle = o.gridColor || 'rgba(128,128,128,.18)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let x = 0; x <= W; x++) { ctx.moveTo(ox + x * c + 0.5, oy); ctx.lineTo(ox + x * c + 0.5, oy + L * c); }
+    for (let z = 0; z <= L; z++) { ctx.moveTo(ox, oy + z * c + 0.5); ctx.lineTo(ox + W * c, oy + z * c + 0.5); }
+    ctx.stroke();
+    ctx.imageSmoothingEnabled = false;
+    const drawBlocks = (list, alpha) => {
+      ctx.globalAlpha = alpha;
+      for (const b of list || []) {
+        const { base, dir } = MF.parseKey(b[3]);
+        const d = MF.BLOCKS[base];
+        if (!d) continue;
+        const x = ox + b[0] * c, y = oy + b[2] * c;
+        const sh = d.shape || 'cube';
+        const real = MF.texReady && c >= 6 ? MF.iconTex(base, ['plant', 'crop', 'cactus', 'small', 'thinplant'].includes(sh) && !(MF.TEXMAP[base] && !MF.TEXMAP[base].cross && sh === 'cactus') ? 'side' : 'top') : null;
+        ctx.fillStyle = d.color;
+        if (sh === 'marker') { ctx.beginPath(); ctx.moveTo(x + c / 2, y + 1); ctx.lineTo(x + c - 1, y + c / 2); ctx.lineTo(x + c / 2, y + c - 1); ctx.lineTo(x + 1, y + c / 2); ctx.fill(); continue; }
+        if (['small', 'post', 'thinplant'].includes(sh)) {
+          if (real && sh !== 'post') ctx.drawImage(real, x, y, c, c); else ctx.fillRect(x + c * 0.32, y + c * 0.32, c * 0.36, c * 0.36);
+          continue;
+        }
+        if (['plant', 'crop', 'cactus'].includes(sh)) {
+          if (real) ctx.drawImage(real, x + c * 0.05, y + c * 0.05, c * 0.9, c * 0.9); else ctx.fillRect(x + c * 0.15, y + c * 0.15, c * 0.7, c * 0.7);
+          continue;
+        }
+        if (sh === 'flat') {
+          if (real && base !== 'redstone') { ctx.drawImage(real, x, y, c, c); continue; }
+          ctx.fillRect(x + c * 0.1, y + c * 0.4, c * 0.8, c * 0.2); ctx.fillRect(x + c * 0.4, y + c * 0.1, c * 0.2, c * 0.8);
+          continue;
+        }
+        if (sh === 'trapOpen' && dir) {
+          const op = MF.OPP[dir]; const t = Math.max(2, c * 0.2);
+          if (op === 's') ctx.fillRect(x, y + c - t, c, t); else if (op === 'n') ctx.fillRect(x, y, c, t); else if (op === 'e') ctx.fillRect(x + c - t, y, t, c); else ctx.fillRect(x, y, t, c);
+          continue;
+        }
+        if (real) ctx.drawImage(real, x, y, c, c);
+        else ctx.fillRect(x + 0.5, y + 0.5, c - 1, c - 1);
+        if (sh === 'glass') { ctx.strokeStyle = 'rgba(255,255,255,.6)'; ctx.strokeRect(x + 1.5, y + 1.5, c - 3, c - 3); }
+        if (sh === 'slab' || sh === 'trap' || sh === 'bed') { ctx.fillStyle = 'rgba(0,0,0,.28)'; ctx.fillRect(x + 0.5, y + c / 2, c - 1, c / 2 - 0.5); }
+        if (sh === 'slabTop' || sh === 'trapTop') { ctx.fillStyle = 'rgba(255,255,255,.28)'; ctx.fillRect(x + 0.5, y + 0.5, c - 1, c / 2); }
+        if (d.dirProp && dir && c >= 8) {
+          ctx.fillStyle = d.front || '#000';
+          ctx.strokeStyle = '#fff';
+          ctx.lineWidth = 1;
+          const cx = x + c / 2, cy = y + c / 2;
+          if (dir === 'u' || dir === 'd') {
+            ctx.beginPath(); ctx.arc(cx, cy, c * 0.18, 0, Math.PI * 2);
+            if (dir === 'd') { ctx.fill(); ctx.stroke(); } else { ctx.lineWidth = 2; ctx.strokeStyle = d.front || '#000'; ctx.stroke(); }
+          } else {
+            const v = MF.DIRS[dir].v;
+            ctx.beginPath();
+            ctx.moveTo(cx + v[0] * c * 0.38, cy + v[2] * c * 0.38);
+            ctx.lineTo(cx - v[2] * c * 0.22 - v[0] * c * 0.1, cy + v[0] * c * 0.22 - v[2] * c * 0.1);
+            ctx.lineTo(cx + v[2] * c * 0.22 - v[0] * c * 0.1, cy - v[0] * c * 0.22 - v[2] * c * 0.1);
+            ctx.closePath();
+            ctx.fill();
+            if (real) ctx.stroke();
+          }
+        }
+      }
+      ctx.globalAlpha = 1;
+    };
+    if (o.ghost !== false) drawBlocks(byLayer[layer - 1], 0.18);
+    drawBlocks(byLayer[layer], 1);
+    if (o.mobs) for (const m of mobsByLayer[layer] || []) {
+      const d = MF.BLOCKS[m[3]];
+      ctx.fillStyle = d.color;
+      ctx.strokeStyle = '#000';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(ox + m[0] * c + c / 2, oy + m[2] * c + c / 2, c * 0.3, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    }
+    if (o.numbers) {
+      ctx.fillStyle = o.numberColor || '#666';
+      ctx.font = '600 ' + Math.max(8, Math.min(11, c * 0.7)) + 'px Inter, sans-serif';
+      ctx.textAlign = 'center';
+      for (let x = 0; x < W; x += 5) ctx.fillText(String(x), ox + x * c + c / 2, oy - 4);
+      ctx.textAlign = 'right';
+      for (let z = 0; z < L; z += 5) ctx.fillText(String(z), ox - 4, oy + z * c + c * 0.75);
+      ctx.textAlign = 'left';
+    }
+  }
+
   // ---------------------------------------------------------------- Router
   let viewer = null;
   function route() {
@@ -150,6 +244,11 @@
       const farm = MF.FARMS.find((f) => f.id === parts[1]);
       if (farm) return renderFarm(farm, Math.min(+parts[2] || 0, farm.tiers.length - 1));
     }
+    if (parts[0] === 'druck') {
+      const farm = MF.FARMS.find((f) => f.id === parts[1]);
+      if (farm) return renderPrint(farm, Math.min(+parts[2] || 0, farm.tiers.length - 1));
+    }
+    if (parts[0] === 'texturen') return renderTextures();
     if (parts[0] === 'meine') return renderMine();
     if (parts[0] === 'hilfe') return renderHelp();
     renderHome();
@@ -235,7 +334,23 @@
       for (const { f, st } of done) for (const [item, n] of (f.tiers[st.tier] || f.tiers[0]).rates) sum[item] = (sum[item] || 0) + n;
       html += '<h2 class="section-title">Gesamtertrag deiner fertigen Farmen</h2><div class="card"><div class="rate-grid">' + Object.entries(sum).map(([k, v]) => '<div class="rate"><b>' + fmt(v) + '</b><span>' + esc(k) + ' / h</span></div>').join('') + '</div></div>';
     }
+    // Gemeinsame Einkaufsliste für alles, was geplant oder im Bau ist
+    const todo = mine.filter((x) => x.st.state === 'plan' || x.st.state === 'build');
+    if (todo.length) {
+      const sl = shoppingList(todo);
+      const order = ['iron', 'gold', 'redstone', 'quartz', 'slime', 'string', 'log', 'cobble', 'sand', 'wool', 'coal', 'honeycomb', 'glowstone'];
+      html += '<h2 class="section-title">Einkaufsliste für ' + todo.length + (todo.length === 1 ? ' Farm' : ' Farmen') + '</h2>' +
+        '<p class="muted small">Alles zusammengerechnet, was du für deine geplanten Farmen und die Farmen im Bau brauchst.</p>' +
+        '<div class="shop"><div class="card shop-raw"><h3>Rohstoffe</h3><div class="rate-grid">' +
+        order.filter((k) => sl.raw[k] > 0).map((k) => '<div class="rate"><b>' + fmt(Math.ceil(sl.raw[k])) + '</b><span>' + MF.RAW[k] + (stacks(Math.ceil(sl.raw[k])) ? ' · ' + stacks(Math.ceil(sl.raw[k])) : '') + '</span></div>').join('') +
+        (sl.raw.__filler ? '<div class="rate"><b>' + fmt(sl.raw.__filler) + '</b><span>beliebige Füllblöcke</span></div>' : '') +
+        '</div>' + (sl.raw.iron > 64 ? '<p class="small tip-box">💡 Tipp: Du brauchst viel Eisen – bau zuerst die <a href="#/farm/eisen/0">Eisenfarm</a>!</p>' : '') + '</div>' +
+        '<div class="card shop-items"><h3>Blöcke & Tiere</h3><ul class="shop-list">' +
+        sl.items.map((m) => '<li>' + iconHTML(m.base) + '<span>' + esc(m.name) + '<small class="muted"> ' + esc([...new Set(m.farms)].join(', ')) + '</small></span><b>' + fmt(m.count) + '</b></li>').join('') +
+        '</ul></div></div>';
+    }
     $app.innerHTML = html;
+    hydrateIcons($app, 20);
   }
 
   // ---------------------------------------------------------------- Hilfe
@@ -249,7 +364,10 @@
       '<li>In der <b>3D-Ansicht</b> drehst du mit der linken Maustaste, verschiebst mit der rechten und zoomst mit dem Mausrad. Fährst du über einen Block, steht da, was es ist.</li>' +
       '<li>Mit dem <b>Schicht-Regler</b> gehst du Schicht für Schicht nach oben. „Bis Schicht" zeigt alles darunter abgedunkelt, „Nur Schicht" nur die aktuelle Ebene. Der <b>Schicht-Plan</b> zeigt die Ebene von oben wie ein Bauplan.</li>' +
       '<li>Die <b>To-Do-Liste</b> zeigt alle Blöcke. Hake ab, was du schon hast – das wird in deinem Browser gespeichert.</li>' +
-      '<li>Blöcke mit dem Label <span class="tag tag-flex">austauschbar</span> kannst du durch etwas anderes ersetzen, z. B. Erde statt Bruchstein.</li></ol>' +
+      '<li>Blöcke mit dem Label <span class="tag tag-flex">austauschbar</span> kannst du durch etwas anderes ersetzen, z. B. Erde statt Bruchstein.</li>' +
+      '<li><b>▶ So funktioniert\'s</b> (in der 3D-Ansicht) spielt eine Animation ab: Mobs laufen, Beobachter blinken, Kolben fahren aus – mit Erklärung Schritt für Schritt.</li>' +
+      '<li><b>🖨 Druckansicht</b>: alle Schicht-Pläne, Materialliste und Anleitung zum Ausdrucken oder als PDF speichern.</li>' +
+      '<li><b>Echte Texturen</b>: Unter <a href="#/texturen">Texturen</a> deine Minecraft-.jar oder ein Resource Pack auswählen.</li></ol>' +
       '<h3>Schematic benutzen</h3><ul>' +
       '<li><b>.litematic</b> – für die Mod <i>Litematica</i>: Datei in den Ordner <code>.minecraft/schematics</code> legen, im Spiel mit <code>M</code> das Menü öffnen, „Load Schematics" und platzieren. Litematica zeigt dir dann die Blöcke als Geist im Spiel.</li>' +
       '<li><b>.schem</b> – für <i>WorldEdit</i>/<i>FAWE</i> (Server oder Einzelspieler): Datei in <code>config/worldedit/schematics</code> (Mod) oder <code>plugins/WorldEdit/schematics</code> (Server), dann <code>//schem load name</code> und <code>//paste</code>.</li>' +
@@ -302,10 +420,11 @@
       '<div class="seg" id="mode-seg"><button data-mode="all">Alles</button><button data-mode="upto">Bis Schicht</button><button data-mode="only">Nur Schicht</button></div>' +
       '</div>' +
       '<div class="viewer-wrap"><div id="v3d" class="v3d"></div><div id="v2d" class="v2d" hidden><canvas id="map"></canvas><div class="viewer-tip" id="maptip"></div></div>' +
-      '<div class="view-btns"><button id="reset" title="Ansicht zurücksetzen">⟲</button><button id="top" title="Von oben">⬒</button><label class="mobtoggle" title="Tiere/Mobs anzeigen"><input type="checkbox" id="mobs"' + (ui.mobs ? ' checked' : '') + '> Mobs</label></div></div>' +
+      '<div class="view-btns">' + (s.anim && s.anim.length ? '<button id="play" class="play">▶ So funktioniert\'s</button>' : '') + '<button id="reset" title="Ansicht zurücksetzen">⟲</button><button id="top" title="Von oben">⬒</button><label class="mobtoggle" title="Tiere/Mobs anzeigen"><input type="checkbox" id="mobs"' + (ui.mobs ? ' checked' : '') + '> Mobs</label></div></div>' +
       '<div class="layer-ctl"><button id="ldown" aria-label="Schicht runter">▼</button><input type="range" id="layer" min="1" max="' + H + '" value="' + H + '"><button id="lup" aria-label="Schicht hoch">▲</button><span class="layer-label">Schicht <b id="lnum">' + H + '</b> / ' + H + '</span></div>' +
       '<div class="layer-legend" id="legend"></div>' +
-      '<div class="downloads"><span class="muted small">Schematic herunterladen:</span><button class="btn" id="dl-lit">⬇ .litematic <small>Litematica</small></button><button class="btn" id="dl-schem">⬇ .schem <small>WorldEdit</small></button></div>' +
+      (MF.texReady ? '' : '<a class="tex-hint" href="#/texturen">🎨 <b>Echte Minecraft-Texturen</b> anzeigen – einfach deine Minecraft-Datei auswählen →</a>') +
+      '<div class="downloads"><span class="muted small">Schematic:</span><button class="btn" id="dl-lit">⬇ .litematic <small>Litematica</small></button><button class="btn" id="dl-schem">⬇ .schem <small>WorldEdit</small></button><a class="btn btn-ghost" href="#/druck/' + farm.id + '/' + ti + '">🖨 Druckansicht / PDF</a></div>' +
       '</div>' +
 
       '<div class="card side-card">' +
@@ -347,7 +466,21 @@
       ui.view = '2d';
     }
 
+    const playBtn = document.getElementById('play');
+    const stopPlay = () => {
+      if (viewer && viewer.animState) viewer.stopAnim();
+      if (playBtn) { playBtn.textContent = '▶ So funktioniert\'s'; playBtn.classList.remove('on'); }
+    };
+    if (playBtn) playBtn.addEventListener('click', () => {
+      if (!viewer) return;
+      if (viewer.animState) { stopPlay(); if (viewer) viewer.resetView(); return; }
+      if (ui.view !== '3d') setView('3d');
+      viewer.playAnim();
+      playBtn.textContent = '■ Stopp';
+      playBtn.classList.add('on');
+    });
     const setLayer = (y) => {
+      stopPlay();
       ui.layer = Math.max(0, Math.min(H - 1, y));
       document.getElementById('layer').value = ui.layer + 1;
       document.getElementById('lnum').textContent = ui.layer + 1;
@@ -358,6 +491,7 @@
       if (ui.tab === 'todo' && ui.layerOnly) renderTab();
     };
     const setMode = (m) => {
+      stopPlay();
       ui.mode = m;
       document.querySelectorAll('#mode-seg button').forEach((b) => b.classList.toggle('active', b.dataset.mode === m));
       if (viewer) viewer.setLayer(ui.layer, m);
@@ -408,66 +542,7 @@
       ctx.clearRect(0, 0, cw, ch);
       mapCell = Math.max(4, Math.floor(Math.min((cw - 24) / W, (ch - 24) / L)));
       mapOff = [Math.floor((cw - mapCell * W) / 2), Math.floor((ch - mapCell * L) / 2)];
-      const [ox, oy] = mapOff, c = mapCell;
-      ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--map-bg') || '#111';
-      ctx.fillRect(ox, oy, c * W, c * L);
-      // Raster
-      ctx.strokeStyle = 'rgba(128,128,128,.18)';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      for (let x = 0; x <= W; x++) { ctx.moveTo(ox + x * c + 0.5, oy); ctx.lineTo(ox + x * c + 0.5, oy + L * c); }
-      for (let z = 0; z <= L; z++) { ctx.moveTo(ox, oy + z * c + 0.5); ctx.lineTo(ox + W * c, oy + z * c + 0.5); }
-      ctx.stroke();
-      const drawBlocks = (list, alpha) => {
-        ctx.globalAlpha = alpha;
-        for (const b of list || []) {
-          const { base, dir } = MF.parseKey(b[3]);
-          const d = MF.BLOCKS[base];
-          if (!d) continue;
-          const x = ox + b[0] * c, y = oy + b[2] * c;
-          const sh = d.shape || 'cube';
-          ctx.fillStyle = d.color;
-          if (sh === 'marker') { ctx.beginPath(); ctx.moveTo(x + c / 2, y + 1); ctx.lineTo(x + c - 1, y + c / 2); ctx.lineTo(x + c / 2, y + c - 1); ctx.lineTo(x + 1, y + c / 2); ctx.fill(); continue; }
-          if (['small', 'post', 'thinplant'].includes(sh)) { ctx.fillRect(x + c * 0.32, y + c * 0.32, c * 0.36, c * 0.36); continue; }
-          if (['plant', 'crop', 'cactus'].includes(sh)) { ctx.fillRect(x + c * 0.15, y + c * 0.15, c * 0.7, c * 0.7); continue; }
-          if (sh === 'flat') { ctx.fillRect(x + c * 0.1, y + c * 0.4, c * 0.8, c * 0.2); ctx.fillRect(x + c * 0.4, y + c * 0.1, c * 0.2, c * 0.8); continue; }
-          if (sh === 'trapOpen' && dir) {
-            const o = MF.OPP[dir]; const t = Math.max(2, c * 0.2);
-            if (o === 's') ctx.fillRect(x, y + c - t, c, t); else if (o === 'n') ctx.fillRect(x, y, c, t); else if (o === 'e') ctx.fillRect(x + c - t, y, t, c); else ctx.fillRect(x, y, t, c);
-            continue;
-          }
-          ctx.fillRect(x + 0.5, y + 0.5, c - 1, c - 1);
-          if (sh === 'glass') { ctx.strokeStyle = 'rgba(255,255,255,.6)'; ctx.strokeRect(x + 1.5, y + 1.5, c - 3, c - 3); }
-          if (sh === 'slab' || sh === 'trap' || sh === 'bed') { ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.fillRect(x + 0.5, y + c / 2, c - 1, c / 2 - 0.5); }
-          if (sh === 'slabTop' || sh === 'trapTop') { ctx.fillStyle = 'rgba(255,255,255,.25)'; ctx.fillRect(x + 0.5, y + 0.5, c - 1, c / 2); }
-          if (d.dirProp && dir && c >= 8) {
-            ctx.fillStyle = d.front || '#000';
-            ctx.strokeStyle = d.front || '#000';
-            const cx = x + c / 2, cy = y + c / 2;
-            if (dir === 'u' || dir === 'd') {
-              ctx.beginPath(); ctx.arc(cx, cy, c * 0.18, 0, Math.PI * 2);
-              if (dir === 'd') ctx.fill(); else { ctx.lineWidth = 2; ctx.stroke(); }
-            } else {
-              const v = MF.DIRS[dir].v;
-              ctx.beginPath();
-              ctx.moveTo(cx + v[0] * c * 0.38, cy + v[2] * c * 0.38);
-              ctx.lineTo(cx - v[2] * c * 0.22 - v[0] * c * 0.1, cy + v[0] * c * 0.22 - v[2] * c * 0.1);
-              ctx.lineTo(cx + v[2] * c * 0.22 - v[0] * c * 0.1, cy - v[0] * c * 0.22 - v[2] * c * 0.1);
-              ctx.fill();
-            }
-          }
-        }
-        ctx.globalAlpha = 1;
-      };
-      drawBlocks(byLayer[ui.layer - 1], 0.18);
-      drawBlocks(byLayer[ui.layer], 1);
-      if (ui.mobs) for (const m of mobsByLayer[ui.layer] || []) {
-        const d = MF.BLOCKS[m[3]];
-        ctx.fillStyle = d.color;
-        ctx.strokeStyle = '#000';
-        ctx.lineWidth = 1.5;
-        ctx.beginPath(); ctx.arc(ox + m[0] * c + c / 2, oy + m[2] * c + c / 2, c * 0.3, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-      }
+      paintLayer(ctx, { W, L, byLayer, mobsByLayer, y: ui.layer, c: mapCell, ox: mapOff[0], oy: mapOff[1], mobs: ui.mobs, bg: getComputedStyle(document.body).getPropertyValue('--map-bg') || '#111' });
       // Kompass
       ctx.fillStyle = 'rgba(160,160,160,.9)';
       ctx.font = '600 11px Inter, sans-serif';
@@ -606,6 +681,189 @@
     setLayer(H - 1);
     renderTab();
   }
+
+  // ---------------------------------------------------------------- Texturen-Seite
+  function renderTextures() {
+    const info = MF.texInfo;
+    $app.innerHTML =
+      '<section class="page-head"><h1>Echte Minecraft-Texturen</h1>' +
+      '<p class="muted">Die Original-Texturen gehören Mojang und dürfen nicht einfach auf einer Website verteilt werden. Du hast sie aber schon auf deinem Computer! Wähle deine Minecraft-Datei aus – sie wird nur in deinem Browser geöffnet, nichts wird hochgeladen. Danach sieht die 3D-Ansicht aus wie im Spiel.</p></section>' +
+      '<div class="tex-grid">' +
+      '<div class="card tex-card">' +
+      (info ? '<div class="tex-ok">✅ <b>Echte Texturen aktiv</b><br><span class="muted small">' + esc(info.name) + ' · ' + info.count + ' Texturen</span></div>' : '') +
+      '<label class="drop" id="drop"><input type="file" id="texfile" accept=".jar,.zip"><span class="drop-big">📦</span><b>' + (info ? 'Andere Datei wählen' : 'Minecraft-.jar oder Resource Pack (.zip) wählen') + '</b><span class="muted small">oder hierher ziehen</span></label>' +
+      '<div id="texstatus" class="small"></div>' +
+      (info ? '<button class="linkbtn" id="texclear">Texturen wieder entfernen</button>' : '') +
+      '<div class="tex-preview" id="texprev"></div>' +
+      '</div>' +
+      '<div class="card prose tex-help"><h3>Wo finde ich die Datei?</h3>' +
+      '<p>Nimm die <b>.jar-Datei deiner Minecraft-Version</b> (z. B. 1.21.1):</p><ul>' +
+      '<li><b>Windows:</b> <code>%appdata%\\.minecraft\\versions\\1.21.1\\1.21.1.jar</code><br><span class="muted small">Tipp: Windows-Taste + R, <code>%appdata%</code> eingeben, Enter.</span></li>' +
+      '<li><b>Mac:</b> <code>~/Library/Application Support/minecraft/versions/1.21.1/1.21.1.jar</code><br><span class="muted small">Im Finder: Gehe zu → Gehe zu Ordner (⇧⌘G).</span></li>' +
+      '<li><b>Linux:</b> <code>~/.minecraft/versions/1.21.1/1.21.1.jar</code></li></ul>' +
+      '<p>Gibt es den Ordner <code>versions</code> nicht, starte die Version einmal im Launcher.</p>' +
+      '<h3>Resource Packs</h3><p>Du kannst auch ein Resource Pack (.zip) wählen, z. B. Faithful. Dann sieht alles so aus wie dein Lieblings-Pack. Fehlende Texturen werden durch die Standard-Farben ersetzt.</p>' +
+      '<p class="muted small">Die Texturen werden in deinem Browser gespeichert (IndexedDB) und sind beim nächsten Besuch automatisch wieder da.</p></div>' +
+      '</div>';
+    const prev = document.getElementById('texprev');
+    if (MF.texReady) {
+      for (const k of ['grass', 'cobble', 'hopper', 'observer', 'piston', 'dispenser', 'chest', 'glass', 'composter', 'beehive', 'magma', 'obsidian', 'sand', 'planks']) {
+        const c = iconCanvas(k, 40);
+        c.title = MF.BLOCKS[k].name;
+        prev.appendChild(c);
+      }
+    }
+    const status = document.getElementById('texstatus');
+    const load = async (file) => {
+      if (!file) return;
+      status.innerHTML = '⏳ Lese <b>' + esc(file.name) + '</b> …';
+      try {
+        const info2 = await MF.loadTexturePack(file, (p) => (status.innerHTML = '⏳ Entpacke Texturen … ' + Math.round(p * 100) + '%'));
+        status.innerHTML = '✅ ' + info2.count + ' Texturen geladen!' + (history.length > 1 ? ' <a href="javascript:history.back()">Zurück zur Farm →</a>' : '');
+      } catch (err) {
+        status.innerHTML = '<span class="bad">❌ ' + esc(err.message) + '</span>';
+      }
+    };
+    document.getElementById('texfile').addEventListener('change', (e) => load(e.target.files[0]));
+    const drop = document.getElementById('drop');
+    drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('over'); });
+    drop.addEventListener('dragleave', () => drop.classList.remove('over'));
+    drop.addEventListener('drop', (e) => { e.preventDefault(); drop.classList.remove('over'); load(e.dataTransfer.files[0]); });
+    const clr = document.getElementById('texclear');
+    if (clr) clr.addEventListener('click', () => MF.clearTexturePack());
+  }
+
+  // ---------------------------------------------------------------- Druckansicht
+  function layerSignature(byLayer, mobsByLayer, y) {
+    return (byLayer[y] || []).map((b) => b[0] + ',' + b[2] + b[3]).join(';') + '|' + (mobsByLayer[y] || []).map((m) => m[0] + ',' + m[2] + m[3]).join(';');
+  }
+
+  function renderPrint(farm, ti) {
+    const tier = farm.tiers[ti];
+    const s = structure(farm, ti);
+    const [W, H, L] = s.size;
+    const opt = store.get('printopt', { layers: true, merge: true, mats: true });
+    const tot = rawTotals(s);
+    const mats = materials(s, tier).sort((a, b) => b.count - a.count);
+    const lvl = MF.LEVELS[tier.level];
+    let html =
+      '<div class="print-bar no-print"><a href="#/farm/' + farm.id + '/' + ti + '">← Zurück zur Farm</a>' +
+      '<label><input type="checkbox" data-o="mats"' + (opt.mats ? ' checked' : '') + '> Materialliste</label>' +
+      '<label><input type="checkbox" data-o="layers"' + (opt.layers ? ' checked' : '') + '> Schicht-Pläne</label>' +
+      '<label><input type="checkbox" data-o="merge"' + (opt.merge ? ' checked' : '') + '> Gleiche Schichten zusammenfassen</label>' +
+      '<button class="btn" id="doprint">🖨 Drucken / Als PDF speichern</button></div>' +
+      '<article class="print">' +
+      '<header class="p-head"><div><div class="p-kicker" style="color:' + lvl.color + '">' + lvl.name + ' · ' + esc(farm.cat) + '</div><h1>' + farm.icon + ' ' + esc(farm.name) + '</h1><h2>' + esc(tier.name) + '</h2></div>' +
+      '<div class="p-brand">Farm-Planer</div></header>' +
+      '<section class="p-top"><div class="p-shot" id="pshot"><span class="muted small">3D-Bild wird erstellt …</span></div>' +
+      '<table class="p-facts"><tbody>' +
+      '<tr><th>Ertrag / h</th><td>' + tier.rates.map((r) => '<b>' + fmt(r[1]) + '</b> ' + esc(r[0])).join('<br>') + '</td></tr>' +
+      '<tr><th>Laufende Kosten / h</th><td>' + (tier.upkeep.length ? tier.upkeep.map((u) => (u[1] ? fmt(u[1]) + ' ' : '') + esc(u[0])).join('<br>') : 'keine') + '</td></tr>' +
+      '<tr><th>Größe</th><td>' + W + ' × ' + L + ' Grundfläche, ' + H + ' Schichten hoch</td></tr>' +
+      '<tr><th>Schwierigkeit</th><td>' + '■'.repeat(tier.difficulty) + '□'.repeat(5 - tier.difficulty) + '</td></tr>' +
+      (tier.req && tier.req.length ? '<tr><th>Du brauchst</th><td>' + tier.req.map(esc).join('<br>') + '</td></tr>' : '') +
+      '</tbody></table></section>' +
+      '<section class="p-sec"><h3>So funktioniert\'s</h3><p>' + esc(tier.how) + '</p>' +
+      '<div class="p-cols"><div><h4>Bauanleitung</h4><ol>' + tier.steps.map((x) => '<li>' + esc(x) + '</li>').join('') + '</ol></div>' +
+      (tier.tips && tier.tips.length ? '<div><h4>Tipps</h4><ul>' + tier.tips.map((x) => '<li>' + esc(x) + '</li>').join('') + '</ul></div>' : '') + '</div></section>';
+    if (opt.mats) {
+      html += '<section class="p-sec p-break-avoid"><h3>Materialliste</h3><table class="p-table"><thead><tr><th></th><th>Material</th><th>Menge</th><th>Stacks</th><th>Hinweis</th></tr></thead><tbody>' +
+        mats.map((m) => '<tr><td class="p-box">☐</td><td>' + (m.base ? iconHTML(m.base) : '') + ' ' + esc(m.name) + (m.def && m.def.flex ? ' <span class="tag tag-flex">austauschbar</span>' : '') + '</td><td><b>' + fmt(m.count) + '</b></td><td>' + stacks(m.count, m.key) + '</td><td class="small">' + esc((m.def && (m.def.flex || m.def.note || m.def.how)) || m.note || '') + '</td></tr>').join('') +
+        '</tbody></table>' +
+        '<h4>Rohstoffe insgesamt</h4><p class="small">' + Object.entries(tot.raw).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]).map(([k, v]) => '<b>' + fmt(Math.ceil(v)) + '</b> ' + MF.RAW[k]).join(' · ') + (tot.filler ? ' · <b>' + fmt(tot.filler) + '</b> beliebige Füllblöcke' : '') + '</p></section>';
+    }
+    html += '<section class="p-sec" id="players"></section>';
+    html += '<footer class="p-foot">Legende: Pfeil/Punkt = Richtung (wohin Trichter, Kolben, Werfer zeigen bzw. wohin der Beobachter schaut; Punkt = nach unten). Kreis = Tier/Mob. Gelber Diamant = dein Standplatz. Blasse Blöcke = Schicht darunter. Koordinaten: x nach rechts (Osten), z nach unten (Süden).</footer>';
+    html += '</article>';
+    $app.innerHTML = html;
+    hydrateIcons($app, 18);
+    $app.querySelectorAll('[data-o]').forEach((cb) => cb.addEventListener('change', () => { opt[cb.dataset.o] = cb.checked; store.set('printopt', opt); renderPrint(farm, ti); }));
+    document.getElementById('doprint').addEventListener('click', () => window.print());
+
+    // Schicht-Pläne
+    if (opt.layers) {
+      const byLayer = {}, mobsByLayer = {};
+      for (const b of s.blocks) (byLayer[b[1]] = byLayer[b[1]] || []).push(b);
+      for (const m of s.mobs) (mobsByLayer[m[1]] = mobsByLayer[m[1]] || []).push(m);
+      const groups = [];
+      for (let y = 0; y < H; y++) {
+        if (!(byLayer[y] || []).length && !(mobsByLayer[y] || []).length) continue;
+        const sig = layerSignature(byLayer, mobsByLayer, y);
+        const last = groups[groups.length - 1];
+        if (opt.merge && last && last.sig === sig && last.to === y - 1) last.to = y;
+        else groups.push({ from: y, to: y, sig });
+      }
+      const c = Math.max(6, Math.min(22, Math.floor(640 / Math.max(W, L))));
+      let lh = '<h3>Schicht-Pläne <span class="muted small">(' + groups.length + ' Pläne für ' + H + ' Schichten)</span></h3><div class="p-layers">';
+      groups.forEach((g, i) => {
+        const cv = document.createElement('canvas');
+        const pad = 22;
+        const scale = 2;
+        cv.width = (W * c + pad + 4) * scale; cv.height = (L * c + pad + 4) * scale;
+        const ctx = cv.getContext('2d');
+        ctx.scale(scale, scale);
+        ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, cv.width, cv.height);
+        paintLayer(ctx, { W, L, byLayer, mobsByLayer, y: g.from, c, ox: pad, oy: pad, mobs: true, bg: '#fbfaf6', gridColor: 'rgba(0,0,0,.15)', numbers: true, numberColor: '#888' });
+        const counts = materials(s, tier, g.from).filter((m) => m.kind !== 'extra').sort((a, b) => b.count - a.count);
+        const n = g.to - g.from + 1;
+        lh += '<figure class="p-layer' + (W > 30 ? ' wide' : '') + '"><figcaption><b>Schicht ' + (g.from + 1) + (n > 1 ? '–' + (g.to + 1) : '') + '</b>' + (n > 1 ? ' <span class="muted">(' + n + '× gleich)</span>' : '') + '</figcaption>' +
+          '<img src="' + cv.toDataURL('image/png') + '" alt="Schicht ' + (g.from + 1) + '" style="width:' + (W * c + pad + 4) + 'px">' +
+          '<div class="p-legend">' + counts.map((m) => '<span>' + iconHTML(m.base) + m.count + (n > 1 ? '×' + n : '') + ' ' + esc(m.name) + '</span>').join('') + '</div></figure>';
+      });
+      lh += '</div>';
+      const el = document.getElementById('players');
+      el.innerHTML = lh;
+      hydrateIcons(el, 14);
+    }
+
+    // 3D-Bild
+    const shot = document.getElementById('pshot');
+    const tmp = document.createElement('div');
+    tmp.style.cssText = 'position:fixed;left:-9999px;top:0;width:640px;height:420px';
+    document.body.appendChild(tmp);
+    setTimeout(() => {
+      try {
+        const v = new MF.Viewer(tmp, { static: true });
+        v.showMobs = true;
+        v.load(s);
+        v.renderer.setClearColor(0xffffff, 1);
+        if (v.grid) v.grid.visible = false;
+        const url = v.snapshot();
+        v.destroy();
+        shot.innerHTML = '<img src="' + url + '" alt="3D-Ansicht">';
+      } catch (e) {
+        shot.innerHTML = '';
+      }
+      tmp.remove();
+    }, 30);
+  }
+
+  // ---------------------------------------------------------------- Einkaufsliste (mehrere Farmen)
+  function shoppingList(entries) {
+    const raw = {}, items = new Map();
+    for (const { f, st } of entries) {
+      const ti = st.tier || 0;
+      const s = structure(f, ti);
+      const t = rawTotals(s);
+      for (const [k, v] of Object.entries(t.raw)) raw[k] = (raw[k] || 0) + v;
+      raw.__filler = (raw.__filler || 0) + t.filler;
+      for (const m of materials(s, f.tiers[ti])) {
+        if (m.kind === 'extra') continue;
+        const e = items.get(m.key) || { name: m.name, base: m.base, count: 0, farms: [] };
+        e.count += m.count;
+        e.farms.push(f.name);
+        items.set(m.key, e);
+      }
+    }
+    return { raw, items: [...items.values()].sort((a, b) => b.count - a.count) };
+  }
+
+  window.addEventListener('mf-textures', () => {
+    const y = window.scrollY;
+    route();
+    window.scrollTo(0, y);
+  });
+  MF.restoreTexturePack();
 
   route();
 })();

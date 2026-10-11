@@ -7,6 +7,12 @@
     constructor() {
       this.m = new Map();
       this.mobs = [];
+      this.anims = [];
+    }
+    // Animationsschritt (siehe viewer3d.js: mob, item, block, flash, push, text)
+    anim(step) {
+      this.anims.push(step);
+      return this;
     }
     k(x, y, z) {
       return x + ',' + y + ',' + z;
@@ -60,10 +66,13 @@
       const blocks = pts.map((p) => [p[0] - minX, p[1] - minY, p[2] - minZ, p[3]]);
       const mobs = this.mobs.map((p) => [p[0] - minX, p[1] - minY, p[2] - minZ, p[3], p[4]]);
       blocks.sort((a, b) => a[1] - b[1] || a[2] - b[2] || a[0] - b[0]);
+      const sh = (p) => [p[0] - minX, p[1] - minY, p[2] - minZ];
+      const anim = this.anims.map((a) => Object.assign({}, a, a.at ? { at: sh(a.at) } : {}, a.path ? { path: a.path.map(sh) } : {}));
       return {
         size: [maxX - minX + 1, maxY - minY + 1, maxZ - minZ + 1],
         blocks,
         mobs,
+        anim,
       };
     }
   }

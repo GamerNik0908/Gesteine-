@@ -937,6 +937,104 @@
         },
       ],
     },
+
+    // =========================================================== DORFBEWOHNER
+    {
+      id: 'dorf', name: 'Dorfbewohner-Zucht', cat: 'Ressourcen', icon: '🧑‍🌾', color: '#a87c5d',
+      product: 'Dorfbewohner',
+      desc: 'Mehr Dorfbewohner für Eisenfarmen, Handelshallen und Bauern. Ein Bauer versorgt die Zucht automatisch mit Essen.',
+      tiers: [
+        {
+          level: 1, name: 'Liebes-Hütte (manuell füttern)', difficulty: 1,
+          rates: [['Dorfbewohner', 4]],
+          upkeep: [['Karotten / Brot', 24, '12 Karotten pro Dorfbewohner machen ihn paarungsbereit']],
+          extras: [],
+          req: ['2 Dorfbewohner'],
+          how: 'Dorfbewohner vermehren sich, wenn sie genug Essen haben und es freie Betten gibt (mehr Betten als Dorfbewohner). Wirf ihnen Karotten oder Brot zu – Herzchen erscheinen und ein Baby wird geboren. Das Baby passt durch den 1 Block hohen Spalt in den Auslauf, die Eltern nicht.',
+          steps: ['Glas-Hütte (5×5) mit 3 Betten bauen.', 'Zwei Dorfbewohner hineinbringen.', 'Karotten durch die Öffnung oben werfen.', 'Babys laufen durch den Spalt (untere + obere Stufe) in den Auslauf.'],
+          tips: ['Mehr Betten = mehr Babys möglich. Jedes Baby braucht ein freies Bett.', 'Babys sind nach 20 Minuten erwachsen.'],
+          build: (b) => {
+            b.fill(0, 0, 0, 4, 0, 4, 'cobble');
+            b.walls(-1, 0, -1, 5, 2, 5, 'glass');
+            b.fill(-1, 3, -1, 5, 3, 5, 'glass');
+            b.set(2, 3, 2, null);
+            for (let i = 0; i < 3; i++) { b.set(i * 2, 1, 0, 'bed:s'); b.set(i * 2, 1, 1, 'bed_head:s'); }
+            b.mob(1, 1, 3, 'villager'); b.mob(3, 1, 3, 'villager');
+            b.set(5, 1, 2, 'slab'); b.set(5, 2, 2, 'slab_top');
+            b.fill(6, 0, 1, 8, 0, 3, 'cobble');
+            b.walls(5, 1, 0, 9, 2, 4, 'glass', true);
+            b.set(5, 1, 2, 'slab'); b.set(5, 2, 2, 'slab_top');
+            b.mob(7, 1, 2, 'villager');
+          },
+        },
+        {
+          level: 2, name: 'Automatische Zucht mit Bauer', difficulty: 2,
+          rates: [['Dorfbewohner', 6]],
+          upkeep: [],
+          extras: [],
+          req: ['2 Dorfbewohner (einer wird zum Bauern)', 'Karotten zum Pflanzen'],
+          how: 'Der Bauer erntet die Karotten und teilt das Essen mit dem anderen Dorfbewohner. Dadurch sind beide immer bereit zur Paarung – sobald ein Bett frei ist, kommt ein Baby. Babys sind nur knapp 1 Block groß und schlüpfen durch den Spalt in den Auslauf.',
+          steps: ['Boden 7×5, darauf ein kleines Karottenfeld mit Wasser in der Mitte.', 'Komposter in die Ecke (macht den Dorfbewohner zum Bauern).', '3 Betten auf die andere Seite.', 'Glas rundherum, Dach drauf.', 'An der Seite: untere Stufe + darüber obere Stufe = Baby-Ausgang.', 'Dahinter ein Auslauf (oder direkt die Schienen zur Eisenfarm).'],
+          tips: ['Babys aus dem Auslauf kannst du mit einer Lore zur Eisenfarm fahren.', 'Halte die Zucht weit weg von anderen Dörfern, damit die Betten nicht „geklaut" werden.'],
+          build: (b) => {
+            b.fill(0, 0, 0, 6, 0, 4, 'cobble');
+            for (let x = 1; x <= 3; x++) for (let z = 1; z <= 3; z++) {
+              if (x === 2 && z === 2) { b.set(x, 0, z, 'water'); continue; }
+              b.set(x, 0, z, 'farmland'); b.set(x, 1, z, 'carrots');
+            }
+            b.set(0, 1, 0, 'composter');
+            for (const z of [0, 2]) { b.set(5, 1, z, 'bed:s'); b.set(5, 1, z + 1, 'bed_head:s'); }
+            b.set(6, 1, 0, 'bed:s'); b.set(6, 1, 1, 'bed_head:s');
+            b.mob(2, 1, 1, 'farmer'); b.mob(4, 1, 3, 'villager');
+            b.walls(-1, 0, -1, 7, 2, 5, 'glass');
+            b.fill(-1, 3, -1, 7, 3, 5, 'glass');
+            b.set(1, 2, 0, 'torch');
+            b.set(7, 0, 3, 'cobble'); b.set(7, 1, 3, 'slab'); b.set(7, 2, 3, 'slab_top');
+            b.fill(8, 0, 1, 11, 0, 5, 'cobble');
+            b.walls(7, 1, 0, 12, 2, 6, 'glass', true);
+            b.set(7, 1, 3, 'slab'); b.set(7, 2, 3, 'slab_top');
+          },
+        },
+        {
+          level: 3, name: 'Zucht-Station (2 Zellen + Lore)', difficulty: 3,
+          rates: [['Dorfbewohner', 12]],
+          upkeep: [],
+          extras: [['Lore', 4, 'zum Abtransport der Dorfbewohner']],
+          req: ['4 Dorfbewohner'],
+          how: 'Zwei automatische Zuchtzellen teilen sich einen Auslauf. Im Auslauf liegen Schienen: Babys setzen sich in die Lore und du fährst sie direkt zu deiner Eisenfarm oder Handelshalle.',
+          steps: ['Baue zwei Zellen wie bei Fortgeschritten, gespiegelt.', 'Der Auslauf liegt in der Mitte.', 'Schienen durch den Auslauf legen.'],
+          tips: ['Ein Baby in einer Lore steigt nicht von selbst aus – perfekt zum Transport.'],
+          build: (b) => {
+            const cell = (ox, mirror) => {
+              const X = (x) => (mirror ? ox - x : ox + x);
+              b.fill(X(0), 0, 0, X(6), 0, 4, 'cobble');
+              for (let x = 1; x <= 3; x++) for (let z = 1; z <= 3; z++) {
+                if (x === 2 && z === 2) { b.set(X(x), 0, z, 'water'); continue; }
+                b.set(X(x), 0, z, 'farmland'); b.set(X(x), 1, z, 'carrots');
+              }
+              b.set(X(0), 1, 0, 'composter');
+              for (const z of [0, 2]) { b.set(X(5), 1, z, 'bed:s'); b.set(X(5), 1, z + 1, 'bed_head:s'); }
+              b.set(X(6), 1, 0, 'bed:s'); b.set(X(6), 1, 1, 'bed_head:s');
+              b.mob(X(2), 1, 1, 'farmer'); b.mob(X(4), 1, 3, 'villager');
+              b.walls(X(-1), 0, -1, X(7), 2, 5, 'glass');
+              b.fill(X(-1), 3, -1, X(7), 3, 5, 'glass');
+              b.set(X(1), 2, 0, 'torch');
+              b.set(X(7), 1, 3, 'slab'); b.set(X(7), 2, 3, 'slab_top');
+            };
+            cell(0, false);
+            cell(16, true);
+            b.fill(8, 0, -1, 8, 0, 6, 'cobble');
+            b.fill(8, 1, -1, 8, 1, 6, 'rail');
+            b.mob(8, 1, 3, 'minecart');
+            b.walls(7, 0, -2, 9, 2, 7, 'glass', true);
+            b.set(7, 1, 3, 'slab'); b.set(7, 2, 3, 'slab_top');
+            b.set(9, 1, 3, 'slab'); b.set(9, 2, 3, 'slab_top');
+            b.set(8, 1, -2, null); b.set(8, 2, -2, null);
+            b.set(8, 1, 7, null); b.set(8, 2, 7, null);
+          },
+        },
+      ],
+    },
   ];
 
   // Mob-Typen, die nur in Spawner-Farmen vorkommen

@@ -12,7 +12,7 @@
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <header class="topbar">
+  <header class="topbar no-print">
     <a class="brand" href="#/">
       <span class="brand-block" aria-hidden="true"></span>
       <span>Farm-Planer</span>
@@ -20,13 +20,14 @@
     <nav class="topnav">
       <a href="#/">Alle Farmen</a>
       <a href="#/meine">Meine Farmen</a>
+      <a href="#/texturen">Texturen</a>
       <a href="#/hilfe">Hilfe</a>
     </nav>
   </header>
 
   <main id="app"></main>
 
-  <footer class="footer">
+  <footer class="footer no-print">
     <p>Für Minecraft Java Edition 1.21. Alle Raten sind gerundete Richtwerte. Die Baupläne sind vereinfachte Nachbauten bekannter Farm-Prinzipien – teste große Farmen am besten zuerst in einer Kreativwelt.</p>
   </footer>
 
@@ -34,7 +35,9 @@
   <script src="js/vendor/OrbitControls.js"></script>
   <script src="js/blocks.js"></script>
   <script src="js/builder.js"></script>
+  <script src="js/textures.js"></script>
   <script src="js/designs.js"></script>
+  <script src="js/animations.js"></script>
   <script src="js/farms.js"></script>
   <script src="js/schematic.js"></script>
   <script src="js/viewer3d.js"></script>
