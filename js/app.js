@@ -424,7 +424,8 @@
       '<div class="layer-ctl"><button id="ldown" aria-label="Schicht runter">▼</button><input type="range" id="layer" min="1" max="' + H + '" value="' + H + '"><button id="lup" aria-label="Schicht hoch">▲</button><span class="layer-label">Schicht <b id="lnum">' + H + '</b> / ' + H + '</span></div>' +
       '<div class="layer-legend" id="legend"></div>' +
       (MF.texReady ? '' : '<a class="tex-hint" href="#/texturen">🎨 <b>Echte Minecraft-Texturen</b> anzeigen – einfach deine Minecraft-Datei auswählen →</a>') +
-      '<div class="downloads"><span class="muted small">Schematic:</span><button class="btn" id="dl-lit">⬇ .litematic <small>Litematica</small></button><button class="btn" id="dl-schem">⬇ .schem <small>WorldEdit</small></button><a class="btn btn-ghost" href="#/druck/' + farm.id + '/' + ti + '">🖨 Druckansicht / PDF</a></div>' +
+      (MF.preview ? '<div class="downloads"><span class="muted small">Schematic-Download und Drucken gibt es auf der vollständigen Website (diese Vorschau erlaubt keine Downloads).</span><a class="btn btn-ghost" href="#/druck/' + farm.id + '/' + ti + '">🖨 Druckansicht ansehen</a></div>' :
+      '<div class="downloads"><span class="muted small">Schematic:</span><button class="btn" id="dl-lit">⬇ .litematic <small>Litematica</small></button><button class="btn" id="dl-schem">⬇ .schem <small>WorldEdit</small></button><a class="btn btn-ghost" href="#/druck/' + farm.id + '/' + ti + '">🖨 Druckansicht / PDF</a></div>') +
       '</div>' +
 
       '<div class="card side-card">' +
@@ -673,8 +674,10 @@
       btn.disabled = false;
       btn.innerHTML = old;
     };
-    document.getElementById('dl-schem').addEventListener('click', (e) => dl(e.currentTarget, MF.toSchem, '.schem'));
-    document.getElementById('dl-lit').addEventListener('click', (e) => dl(e.currentTarget, MF.toLitematic, '.litematic'));
+    if (!MF.preview) {
+      document.getElementById('dl-schem').addEventListener('click', (e) => dl(e.currentTarget, MF.toSchem, '.schem'));
+      document.getElementById('dl-lit').addEventListener('click', (e) => dl(e.currentTarget, MF.toLitematic, '.litematic'));
+    }
 
     setMode(ui.mode);
     setView(ui.view);
@@ -751,7 +754,7 @@
       '<label><input type="checkbox" data-o="mats"' + (opt.mats ? ' checked' : '') + '> Materialliste</label>' +
       '<label><input type="checkbox" data-o="layers"' + (opt.layers ? ' checked' : '') + '> Schicht-Pläne</label>' +
       '<label><input type="checkbox" data-o="merge"' + (opt.merge ? ' checked' : '') + '> Gleiche Schichten zusammenfassen</label>' +
-      '<button class="btn" id="doprint">🖨 Drucken / Als PDF speichern</button></div>' +
+      (MF.preview ? '<span class="muted small">Drucken geht nur auf der vollständigen Website.</span></div>' : '<button class="btn" id="doprint">🖨 Drucken / Als PDF speichern</button></div>') +
       '<article class="print">' +
       '<header class="p-head"><div><div class="p-kicker" style="color:' + lvl.color + '">' + lvl.name + ' · ' + esc(farm.cat) + '</div><h1>' + farm.icon + ' ' + esc(farm.name) + '</h1><h2>' + esc(tier.name) + '</h2></div>' +
       '<div class="p-brand">Farm-Planer</div></header>' +
@@ -778,7 +781,7 @@
     $app.innerHTML = html;
     hydrateIcons($app, 18);
     $app.querySelectorAll('[data-o]').forEach((cb) => cb.addEventListener('change', () => { opt[cb.dataset.o] = cb.checked; store.set('printopt', opt); renderPrint(farm, ti); }));
-    document.getElementById('doprint').addEventListener('click', () => window.print());
+    if (!MF.preview) document.getElementById('doprint').addEventListener('click', () => window.print());
 
     // Schicht-Pläne
     if (opt.layers) {
